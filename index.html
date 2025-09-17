@@ -794,7 +794,7 @@
 
 
     <!-- 引入QRCode.js库 -->
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     
     <script>
         const API_BASE = 'http://16.171.44.152/api';
@@ -884,24 +884,21 @@
             
             // 生成二维码
             try {
-                QRCode.toCanvas(canvas, qrData, {
+                // 清空canvas
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // 使用qrcodejs库生成二维码
+                const qr = new QRCode(canvas, {
+                    text: qrData,
                     width: 200,
                     height: 200,
-                    color: {
-                        dark: '#000000',
-                        light: '#FFFFFF'
-                    },
-                    errorCorrectionLevel: 'L',
-                    margin: 2
-                }, function (error) {
-                    if (error) {
-                        console.error('二维码生成失败:', error);
-                        // 如果二维码生成失败，显示文本版本
-                        showTextFallback(container, qrData, sessionId);
-                    } else {
-                        console.log('二维码生成成功');
-                    }
+                    colorDark: '#000000',
+                    colorLight: '#FFFFFF',
+                    correctLevel: QRCode.CorrectLevel.L
                 });
+                
+                console.log('二维码生成成功');
             } catch (error) {
                 console.error('二维码生成异常:', error);
                 // 如果二维码生成失败，显示文本版本
