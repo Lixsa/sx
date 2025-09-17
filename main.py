@@ -164,8 +164,8 @@ async def generate_qr_code():
         "user_info": None
     }
     
-    # 生成二维码数据（包含会话ID）
-    qr_code_data = f"DOCTOR_LOGIN:{session_id}"
+    # 生成二维码数据（包含可访问的URL）
+    qr_code_data = f"http://16.171.44.152:8000/confirm-login?loginId={session_id}"
     
     # 使用qrcode库生成二维码图片
     try:
@@ -202,6 +202,50 @@ async def generate_qr_code():
         qr_code_image_url=qr_code_image_url,
         expires_at=expires_at.isoformat()
     )
+
+@app.get("/confirm-login")
+async def confirm_login_page(loginId: str):
+    """确认登录页面（手机扫码后访问）"""
+    if loginId not in qr_sessions:
+        return {"error": "登录ID不存在或已过期", "status": "error"}
+    
+    session = qr_sessions[loginId]
+    
+    # 检查是否过期
+    if datetime.now() > session["expires_at"]:
+        del qr_sessions[loginId]
+        return {"error": "登录ID已过期", "status": "expired"}
+    
+    # 标记为已确认
+    session["is_bound"] = True
+    session["user_info"] = {
+        "user_id": f"user_{loginId[:8]}",
+        "user_name": f"医生_{loginId[:8]}",
+        "user_token": f"token_{loginId}"
+    }
+    
+    print(f"登录确认成功: {loginId}")
+    
+    # 返回简单的确认页面
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>登录确认</title>
+        <style>
+            body {{ font-family: Arial, sans-serif; text-align: center; padding: 50px; }}
+            .success {{ color: #28a745; font-size: 24px; }}
+            .info {{ color: #666; margin-top: 20px; }}
+        </style>
+    </head>
+    <body>
+        <div class="success">✅ 登录确认成功！</div>
+        <div class="info">请返回电脑端查看登录状态</div>
+        <div class="info">登录ID: {loginId}</div>
+    </body>
+    </html>
+    """
 
 @app.get("/api/qr-login/check/{session_id}")
 async def check_qr_login(session_id: str):
@@ -632,10 +676,5 @@ if __name__ == "__main__":
     uvicorn.run(
         app, 
         host="0.0.0.0", 
-        port=8000,
-        limit_request_line=8190,
-        limit_request_fields=100,
-        limit_request_field_size=8190,
-        max_requests=1000,
-        max_requests_jitter=100
+        port=8000
     ) 

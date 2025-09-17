@@ -681,7 +681,8 @@
                     <div class="modal-body">
                         <div id="qrCodeContainer" style="text-align: center; margin: 20px 0;">
                             <div id="qrCode"></div>
-                            <p style="margin-top: 15px; color: #666;">请使用医生APP扫描二维码进行身份验证</p>
+                            <p style="margin-top: 15px; color: #666;">请使用手机扫描二维码进行身份验证</p>
+                            <p style="margin-top: 5px; color: #999; font-size: 12px;">扫码后会自动跳转到确认页面</p>
                             <div id="loginStatus" style="margin-top: 10px; padding: 10px; border-radius: 5px; display: none;"></div>
                         </div>
                     </div>
@@ -891,6 +892,14 @@
                     // 开始轮询检查登录状态
                     startLoginCheck();
                     
+                    // 显示等待状态
+                    const statusElement = document.getElementById('loginStatus');
+                    if (statusElement) {
+                        statusElement.textContent = '等待扫码确认...';
+                        statusElement.className = 'alert alert-warning';
+                        statusElement.style.display = 'block';
+                    }
+                    
                 } else {
                     showAlert('生成二维码失败', 'error');
                 }
@@ -925,6 +934,14 @@
                             // 清除轮询
                             clearInterval(loginCheckInterval);
                             loginCheckInterval = null;
+                        } else if (data.status === 'waiting') {
+                            // 更新状态显示
+                            const statusElement = document.getElementById('loginStatus');
+                            if (statusElement) {
+                                statusElement.textContent = '等待扫码确认...';
+                                statusElement.className = 'alert alert-warning';
+                                statusElement.style.display = 'block';
+                            }
                         }
                     }
                 } catch (error) {
