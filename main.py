@@ -19,12 +19,19 @@ import base64
 
 app = FastAPI(title="健康建议API", description="执业医师健康建议管理系统")
 
-# 配置CORS - 生产环境配置
+# 配置CORS - 支持跨域请求
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 可以根据需要限制具体域名
+    allow_origins=[
+        "http://16.171.44.152",  # 生产环境前端域名
+        "http://localhost:3000",  # 本地开发环境
+        "http://127.0.0.1:3000",  # 本地开发环境
+        "http://localhost:8080",  # 备用本地端口
+        "http://127.0.0.1:8080",  # 备用本地端口
+        "*"  # 允许所有域名（开发阶段）
+    ],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -165,7 +172,7 @@ async def generate_qr_code():
     }
     
     # 生成二维码数据（包含可访问的URL）
-    qr_code_data = f"http://16.171.44.152:8000/confirm-login?loginId={session_id}"
+    qr_code_data = f"http://16.171.44.152/confirm-login?loginId={session_id}"
     
     # 使用qrcode库生成二维码图片
     try:

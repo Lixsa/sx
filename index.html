@@ -794,7 +794,7 @@
 
 
     <script>
-        const API_BASE = 'http://16.171.44.152:8000/api';
+        const API_BASE = 'http://16.171.44.152/api';
         let uploadedImages = [];
         let imageCounter = 0;
         let lastArticleCount = 0; // 记录上次的文章数量
@@ -866,7 +866,7 @@
                         qrCodeDiv.innerHTML = `
                             <div style="padding: 20px; border: 2px dashed #43e97b; border-radius: 10px; background: #f8f9fa;">
                                 <div style="font-size: 24px; margin-bottom: 10px;">📱</div>
-                                <img src="http://16.171.44.152:8000${data.qr_code_image_url}" 
+                                <img src="http://16.171.44.152${data.qr_code_image_url}" 
                                      alt="登录二维码" 
                                      style="max-width: 200px; height: auto; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
                                 <div style="margin-top: 15px; font-size: 12px; color: #999;">
@@ -1339,10 +1339,10 @@
                             
                             ${suggestion.image_url ? `
                                 <div class="suggestion-detail-image">
-                                    <img src="http://16.171.44.152:8000${suggestion.image_url}" 
+                                    <img src="http://16.171.44.152${suggestion.image_url}" 
                                          alt="健康建议图片" 
                                          title="点击查看大图"
-                                         onclick="openImageModal('http://16.171.44.152:8000${suggestion.image_url}')">
+                                         onclick="openImageModal('http://16.171.44.152${suggestion.image_url}')">
                                 </div>
                             ` : ''}
                         </div>
