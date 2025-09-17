@@ -148,7 +148,12 @@ init_database()
 
 @app.get("/")
 async def root():
-    """根路径"""
+    """根路径 - 返回主页面"""
+    return FileResponse(str(STATIC_DIR / "index.html"))
+
+@app.get("/api")
+async def api_root():
+    """API根路径"""
     return {"message": "健康建议API服务正在运行", "status": "production"}
 
 @app.get("/api/test")
