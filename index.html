@@ -1051,7 +1051,7 @@
                 if (!qrCodeSessionId) return;
                 
                 try {
-                    const response = await fetch(`${API_BASE}/qr-login/status?loginId=${qrCodeSessionId}`, {
+                    const response = await fetch(`${API_BASE}/qr-login/check/${qrCodeSessionId}`, {
                         method: 'GET',
                         headers: {
                             'Content-Type': 'application/json'
@@ -1060,7 +1060,7 @@
                     if (response.ok) {
                         const data = await response.json();
                         
-                        if (data.status === 'confirmed') {
+                        if (data.status === 'success') {
                             // 扫码确认成功，登录成功
                             currentUser = {
                                 user_id: `doctor_${qrCodeSessionId.substring(0, 8)}`,

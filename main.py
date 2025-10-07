@@ -177,7 +177,7 @@ async def generate_qr_code():
     }
     
     # 生成二维码数据（包含可访问的URL）
-    qr_code_data = f"http://51.20.18.66/confirm-login?loginId={session_id}"
+    qr_code_data = f"http://51.20.18.66/api/qr-login/check/{session_id}"
     
     # 使用qrcode库生成二维码图片
     try:
@@ -259,28 +259,33 @@ async def confirm_login_page(loginId: str):
     </html>
     """
 
-@app.get("/api/qr-login/check/{session_id}")
-async def check_qr_login(session_id: str):
-    """检查二维码登录状态"""
-    if session_id not in qr_sessions:
+@app.get("/api/qr-login/check/{uuid}")
+async def check_qr_login(uuid: str):
+    """检查二维码登录状态 - 前端轮询接口"""
+    if uuid not in qr_sessions:
         raise HTTPException(status_code=404, detail="会话不存在或已过期")
     
-    session = qr_sessions[session_id]
+    session = qr_sessions[uuid]
     
     # 检查是否过期
     if datetime.now() > session["expires_at"]:
-        del qr_sessions[session_id]
+        del qr_sessions[uuid]
         raise HTTPException(status_code=410, detail="会话已过期")
     
-    if session["is_bound"] and session["user_info"]:
+    # 检查是否已确认扫码
+    if session.get("is_confirmed", False):
         return {
             "status": "success",
-            "user": session["user_info"]
+            "message": "登录成功",
+            "uuid": uuid,
+            "doctor_id": session.get("user_info", {}).get("doctor_id", ""),
+            "confirmed_at": session.get("confirmed_at", datetime.now()).isoformat()
         }
     else:
         return {
             "status": "waiting",
-            "message": "等待扫码绑定"
+            "message": "等待扫码确认",
+            "uuid": uuid
         }
 
 @app.post("/api/qr-login/bind")
@@ -339,9 +344,9 @@ class QRConfirmRequest(BaseModel):
     uuid: str
     doctor_id: str
 
-@app.post("/api/qr-login/confirm/")
-async def confirm_qr_login_post(request: QRConfirmRequest):
-    """确认二维码登录 - APP扫码后调用（POST请求）"""
+@app.post("/api/qr-login/confirm")
+async def confirm_qr_login(request: QRConfirmRequest):
+    """确认二维码登录 - APP扫码后调用"""
     session_id = request.uuid
     doctor_id = request.doctor_id
     
@@ -374,34 +379,6 @@ async def confirm_qr_login_post(request: QRConfirmRequest):
         "doctor_id": doctor_id
     }
 
-@app.get("/api/qr-login/confirm")
-async def confirm_qr_login_get(loginId: str = None):
-    """确认二维码登录 - 兼容旧版本GET请求"""
-    if not loginId:
-        raise HTTPException(status_code=400, detail="缺少loginId参数")
-    
-    if loginId not in qr_sessions:
-        raise HTTPException(status_code=404, detail="登录ID不存在或已过期")
-    
-    session = qr_sessions[loginId]
-    
-    # 检查是否过期
-    if datetime.now() > session["expires_at"]:
-        del qr_sessions[loginId]
-        raise HTTPException(status_code=410, detail="登录ID已过期")
-    
-    # 标记为已确认扫码
-    session["is_confirmed"] = True
-    session["confirmed_at"] = datetime.now()
-    
-    print(f"二维码登录确认成功: {loginId}")
-    print(f"当前会话状态: {session}")
-    
-    return {
-        "status": "success",
-        "message": "扫码确认成功",
-        "loginId": loginId
-    }
 
 @app.get("/api/qr-login/status")
 async def get_qr_login_status(loginId: str = None):
