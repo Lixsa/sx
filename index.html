@@ -864,6 +864,10 @@
             if (userInfo) {
                 try {
                     currentUser = JSON.parse(userInfo);
+                    // 恢复sessionId到全局变量
+                    if (currentUser.session_id) {
+                        window.currentSessionId = currentUser.session_id;
+                    }
                     updateUserInterface();
                     return true;
                 } catch (e) {
@@ -1085,14 +1089,18 @@
                     if (response.ok) {
                         const data = await response.json();
                         
-                        if (data.status === 'success') {
+                        if (data.status === 'success' || data.status === 'confirmed') {
                             // 扫码确认成功，登录成功
                             currentUser = {
-                                user_id: `doctor_${qrCodeSessionId.substring(0, 8)}`,
-                                user_name: `医生_${qrCodeSessionId.substring(0, 8)}`,
-                                user_token: `token_${qrCodeSessionId}`
+                                user_id: data.doctor_id || `doctor_${qrCodeSessionId.substring(0, 8)}`,
+                                user_name: `医生_${data.doctor_id || qrCodeSessionId.substring(0, 8)}`,
+                                user_token: `token_${qrCodeSessionId}`,
+                                session_id: qrCodeSessionId  // 保存sessionId用于后续请求
                             };
                             localStorage.setItem('doctorUserInfo', JSON.stringify(currentUser));
+                            
+                            // 保存sessionId到全局变量，用于后续API请求
+                            window.currentSessionId = qrCodeSessionId;
                             
                             updateUserInterface();
                             closeLoginModal();
@@ -1130,6 +1138,7 @@
         // 退出登录
         function logout() {
             currentUser = null;
+            window.currentSessionId = null;
             localStorage.removeItem('doctorUserInfo');
             updateUserInterface();
             showAlert('已退出登录', 'success');
@@ -1660,6 +1669,13 @@
                 return;
             }
             
+            // 提交前再次确认sessionId
+            console.log('=== 表单提交前认证检查 ===');
+            console.log('checkLoginStatus() 返回:', checkLoginStatus());
+            console.log('currentUser:', currentUser);
+            console.log('window.currentSessionId:', window.currentSessionId);
+            console.log('qrCodeSessionId:', qrCodeSessionId);
+            
             const title = document.getElementById('title').value;
             const author = document.getElementById('author').value;
             const tag = document.getElementById('tag').value;
@@ -1700,8 +1716,27 @@
                 
                 // 添加会话ID到请求头
                 const headers = {};
-                if (qrCodeSessionId) {
-                    headers['X-Session-ID'] = qrCodeSessionId;
+                // 尝试多种方式获取sessionId
+                let sessionId = window.currentSessionId || qrCodeSessionId;
+                if (!sessionId && currentUser && currentUser.session_id) {
+                    sessionId = currentUser.session_id;
+                    window.currentSessionId = sessionId; // 更新全局变量
+                    console.log('从currentUser中恢复sessionId:', sessionId);
+                }
+                
+                // 详细调试信息
+                console.log('=== POST请求认证调试 ===');
+                console.log('window.currentSessionId:', window.currentSessionId);
+                console.log('qrCodeSessionId:', qrCodeSessionId);
+                console.log('currentUser:', currentUser);
+                console.log('最终使用的sessionId:', sessionId);
+                
+                if (sessionId) {
+                    headers['X-Session-ID'] = sessionId;
+                    console.log('✅ 添加认证头 X-Session-ID:', sessionId);
+                } else {
+                    console.error('❌ 没有找到sessionId，请求将失败！');
+                    console.error('请检查登录状态和sessionId存储');
                 }
                 // 注意：FormData会自动设置Content-Type为multipart/form-data，不要手动设置
                 
@@ -1950,8 +1985,19 @@
                 
                 // 添加会话ID到请求头
                 const headers = {};
-                if (qrCodeSessionId) {
-                    headers['X-Session-ID'] = qrCodeSessionId;
+                // 尝试多种方式获取sessionId
+                let sessionId = window.currentSessionId || qrCodeSessionId;
+                if (!sessionId && currentUser && currentUser.session_id) {
+                    sessionId = currentUser.session_id;
+                    window.currentSessionId = sessionId; // 更新全局变量
+                    console.log('删除请求从currentUser中恢复sessionId:', sessionId);
+                }
+                
+                if (sessionId) {
+                    headers['X-Session-ID'] = sessionId;
+                    console.log('✅ 删除请求添加认证头 X-Session-ID:', sessionId);
+                } else {
+                    console.error('❌ 删除请求没有找到sessionId，请求将失败！');
                 }
                 // 注意：FormData会自动设置Content-Type为multipart/form-data，不要手动设置
                 

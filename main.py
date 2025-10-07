@@ -426,7 +426,8 @@ def get_user_from_session(session_id: str):
         return None
     
     session = qr_sessions[session_id]
-    if not session["is_bound"] or not session["user_info"]:
+    # 检查会话是否已确认且已绑定用户信息
+    if not session.get("is_confirmed", False) or not session.get("is_bound", False) or not session.get("user_info"):
         return None
     
     return session["user_info"]
@@ -435,10 +436,15 @@ def get_user_from_request(request: Request):
     """从请求中获取用户信息"""
     # 从请求头获取会话ID
     session_id = request.headers.get("X-Session-ID")
+    print(f"收到请求，X-Session-ID: {session_id}")
+    
     if not session_id:
+        print("没有找到X-Session-ID请求头")
         return None
     
-    return get_user_from_session(session_id)
+    user_info = get_user_from_session(session_id)
+    print(f"从会话获取用户信息: {user_info}")
+    return user_info
 
 @app.get("/api/health-suggestions", response_model=List[HealthSuggestion])
 async def get_health_suggestions():
