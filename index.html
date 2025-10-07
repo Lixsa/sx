@@ -1061,6 +1061,11 @@
                             closeLoginModal();
                             showAlert(`欢迎，${currentUser.user_name}医生！`, 'success');
                             
+                            // 跳转到健康建议列表页面
+                            setTimeout(() => {
+                                switchTab('list');
+                            }, 1000);
+                            
                             // 清除轮询
                             clearInterval(loginCheckInterval);
                             loginCheckInterval = null;

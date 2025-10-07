@@ -334,6 +334,36 @@ async def bind_qr_login(request: QRLoginRequest):
     
     return {"status": "success", "message": "绑定成功"}
 
+@app.post("/api/qr-login/confirm")
+async def confirm_qr_login(request: dict):
+    """确认二维码登录"""
+    session_id = request.get("session_id")
+    
+    if not session_id:
+        raise HTTPException(status_code=400, detail="缺少session_id参数")
+    
+    if session_id not in qr_sessions:
+        raise HTTPException(status_code=404, detail="会话不存在或已过期")
+    
+    session = qr_sessions[session_id]
+    
+    # 检查是否过期
+    if datetime.now() > session["expires_at"]:
+        del qr_sessions[session_id]
+        raise HTTPException(status_code=410, detail="会话已过期")
+    
+    # 检查是否已经绑定
+    if not session["is_bound"] or not session["user_info"]:
+        raise HTTPException(status_code=400, detail="会话未绑定用户")
+    
+    # 返回成功响应和跳转URL
+    return {
+        "status": "success",
+        "message": "登录确认成功",
+        "redirect_url": "/",  # 跳转到主页
+        "user_info": session["user_info"]
+    }
+
 def get_user_from_session(session_id: str):
     """从会话获取用户信息"""
     if session_id not in qr_sessions:
