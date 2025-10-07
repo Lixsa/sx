@@ -1003,7 +1003,10 @@
             
             try {
                 const response = await fetch(`${API_BASE}/qr-login/generate`, {
-                    method: 'POST'
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
                 });
                 
                 if (response.ok) {
@@ -1048,7 +1051,12 @@
                 if (!qrCodeSessionId) return;
                 
                 try {
-                    const response = await fetch(`${API_BASE}/qr-login/check/${qrCodeSessionId}`);
+                    const response = await fetch(`${API_BASE}/qr-login/check/${qrCodeSessionId}`, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
                     if (response.ok) {
                         const data = await response.json();
                         
@@ -1459,7 +1467,12 @@
         // 加载建议详情
         async function loadSuggestionDetail(id) {
             try {
-                const response = await fetch(`${API_BASE}/health-suggestions/${id}`);
+                const response = await fetch(`${API_BASE}/health-suggestions/${id}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
                 if (response.ok) {
                     const suggestion = await response.json();
                     
@@ -1557,7 +1570,12 @@
         // 加载建议数据用于编辑
         async function loadSuggestionForEdit(id) {
             try {
-                const response = await fetch(`${API_BASE}/health-suggestions/${id}`);
+                const response = await fetch(`${API_BASE}/health-suggestions/${id}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
                 if (response.ok) {
                     const suggestion = await response.json();
                     
@@ -1656,6 +1674,7 @@
                 if (qrCodeSessionId) {
                     headers['X-Session-ID'] = qrCodeSessionId;
                 }
+                // 注意：FormData会自动设置Content-Type为multipart/form-data，不要手动设置
                 
                 let response;
                 if (window.editMode) {
@@ -1749,88 +1768,7 @@
             showAlert(`图片插入成功！已插入 ${imageCount} 张图片到文字下方，可以继续上传新图片`, 'success');
         }
         
-        // 提交表单
-        document.getElementById('suggestionForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            const title = document.getElementById('title').value;
-            const author = document.getElementById('author').value;
-            const tag = document.getElementById('tag').value;
-            const content = document.getElementById('editor').innerHTML;
-            
-            if (!title || !author || !content.trim()) {
-                showAlert('请填写必填字段', 'error');
-                return;
-            }
-            
-            // 显示加载状态
-            const submitBtn = e.target.querySelector('button[type="submit"]');
-            const originalText = submitBtn.textContent;
-            submitBtn.textContent = '发布中...';
-            submitBtn.disabled = true;
-            
-            try {
-                // 创建表单数据
-                const formData = new FormData();
-                formData.append('title', title);
-                formData.append('author', author);
-                formData.append('tag', tag);
-                formData.append('content', content);
-                
-                // 如果有图片，添加第一张图片（后端目前只支持单张图片）
-                if (uploadedImages.length > 0) {
-                    formData.append('image', uploadedImages[0].file);
-                }
-                
-                // 调试信息
-                console.log('提交的数据:', {
-                    title,
-                    author,
-                    tag,
-                    content: content.substring(0, 100) + '...',
-                    hasImage: uploadedImages.length > 0
-                });
-                
-                const response = await fetch(`${API_BASE}/health-suggestions`, {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                if (response.ok) {
-                    const result = await response.json();
-                    showAlert('健康建议发布成功！');
-                    resetForm();
-                    // 发布成功后切换到列表页面并立即刷新
-                    switchTab('list');
-                    // 立即加载最新文章
-                    setTimeout(() => {
-                        loadSuggestions();
-                    }, 100);
-                } else {
-                    let errorMessage = '发布失败';
-                    try {
-                        const error = await response.json();
-                        errorMessage = error.detail || errorMessage;
-                        console.error('服务器错误详情:', error);
-                    } catch (parseError) {
-                        errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-                        console.error('解析错误响应失败:', parseError);
-                    }
-                    showAlert(errorMessage, 'error');
-                }
-            } catch (error) {
-                console.error('提交错误:', error);
-                if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
-                    showAlert('网络连接失败，请检查网络连接后重试', 'error');
-                } else {
-                    showAlert(`网络错误: ${error.message}`, 'error');
-                }
-            } finally {
-                // 恢复按钮状态
-                submitBtn.textContent = originalText;
-                submitBtn.disabled = false;
-            }
-        });
+        // 注意：表单提交事件监听器已在上面定义，这里不需要重复定义
         
         // 加载建议列表
         async function loadSuggestions() {
@@ -1845,7 +1783,12 @@
             }
             
             try {
-                const response = await fetch(`${API_BASE}/health-suggestions`);
+                const response = await fetch(`${API_BASE}/health-suggestions`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
                 if (response.ok) {
                     const suggestions = await response.json();
                     
@@ -1981,6 +1924,7 @@
                 if (qrCodeSessionId) {
                     headers['X-Session-ID'] = qrCodeSessionId;
                 }
+                // 注意：FormData会自动设置Content-Type为multipart/form-data，不要手动设置
                 
                 const response = await fetch(`${API_BASE}/health-suggestions/${id}`, {
                     method: 'DELETE',
@@ -2037,7 +1981,12 @@
             listContainer.innerHTML = '<div class="loading">搜索中...</div>';
             
             try {
-                const response = await fetch(`${API_BASE}/health-suggestions/search/${encodeURIComponent(keyword)}`);
+                const response = await fetch(`${API_BASE}/health-suggestions/search/${encodeURIComponent(keyword)}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
                 if (response.ok) {
                     const suggestions = await response.json();
                     displaySuggestions(suggestions);
