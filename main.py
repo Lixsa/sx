@@ -364,8 +364,11 @@ async def confirm_qr_login(request: QRConfirmRequest):
     session["is_confirmed"] = True
     session["confirmed_at"] = datetime.now()
     session["is_bound"] = True
+    # 统一存储字段，避免 KeyError
     session["user_info"] = {
-        "doctor_id": doctor_id,
+        "user_id": doctor_id,                     # 供后台其它接口使用
+        "user_name": f"医生_{doctor_id}",         # 展示用
+        "doctor_id": doctor_id,                   # 原字段保留
         "login_time": datetime.now().isoformat()
     }
     
