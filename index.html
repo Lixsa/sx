@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>健康建议管理系统</title>
     <style>
         * {
@@ -794,7 +797,7 @@
 
 
     <!-- 引入QRCode.js库 - 使用国内镜像提高加载速度 -->
-    <script src="https://cdn.bootcdn.net/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/qrcodejs/1.0.0/qrcode.min.js?v=20241201"></script>
     
     <!-- 备用CDN（如果主CDN失败） -->
     <script>
@@ -839,7 +842,12 @@
     </script>
     
     <script>
+        // 版本: 2024-12-01 - 修复IP地址问题
+        console.log('页面加载时间:', new Date().toISOString());
+        console.log('当前配置版本: 2024-12-01');
+        
         const API_BASE = 'http://51.20.18.66/api';
+        console.log('API_BASE已设置为:', API_BASE);
         let uploadedImages = [];
         let imageCounter = 0;
         let lastArticleCount = 0; // 记录上次的文章数量
