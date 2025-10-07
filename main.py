@@ -376,12 +376,39 @@ async def confirm_qr_login(request: QRConfirmRequest):
     session["confirmed_at"] = datetime.now()
     session["is_bound"] = True
     # 统一存储字段，避免 KeyError
-    session["user_info"] = {
+    user_info = {
         "user_id": doctor_id,                     # 供后台其它接口使用
         "user_name": f"医生_{doctor_id}",         # 展示用
         "doctor_id": doctor_id,                   # 原字段保留
+        "user_token": f"token_{session_id}",      # 添加token字段
         "login_time": datetime.now().isoformat()
     }
+    session["user_info"] = user_info
+    
+    # 保存到数据库，实现持久化
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT OR REPLACE INTO user_sessions 
+            (session_id, user_id, user_name, user_token, created_at, expires_at, is_active)
+            VALUES (?, ?, ?, ?, ?, ?, 1)
+        ''', (
+            session_id,
+            doctor_id,
+            user_info["user_name"],
+            user_info["user_token"],
+            datetime.now().isoformat(),
+            session["expires_at"].isoformat()
+        ))
+        
+        conn.commit()
+        conn.close()
+        print(f"会话已保存到数据库: {session_id}")
+        
+    except Exception as e:
+        print(f"保存会话到数据库失败: {e}")
     
     print(f"二维码登录确认成功: {session_id}, 医师ID: {doctor_id}")
     print(f"当前会话状态: {session}")
@@ -434,23 +461,66 @@ async def get_qr_login_status(loginId: str = None):
 def get_user_from_session(session_id: str):
     """从会话获取用户信息"""
     print(f"查找会话: {session_id}")
-    print(f"当前会话列表: {list(qr_sessions.keys())}")
+    print(f"当前内存会话列表: {list(qr_sessions.keys())}")
     
-    if session_id not in qr_sessions:
-        print("会话不存在")
-        return None
+    # 首先检查内存中的会话
+    if session_id in qr_sessions:
+        session = qr_sessions[session_id]
+        print(f"从内存找到会话: {session}")
+        
+        # 检查会话是否已确认且已绑定用户信息
+        if session.get("is_confirmed", False) and session.get("is_bound", False) and session.get("user_info"):
+            user_info = session["user_info"]
+            print(f"从内存返回用户信息: {user_info}")
+            return user_info
     
-    session = qr_sessions[session_id]
-    print(f"会话状态: {session}")
+    # 内存中没有，尝试从数据库查找
+    print("内存中未找到会话，尝试从数据库查找...")
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT user_id, user_name, user_token, expires_at, is_active
+            FROM user_sessions 
+            WHERE session_id = ? AND is_active = 1
+        ''', (session_id,))
+        
+        row = cursor.fetchone()
+        conn.close()
+        
+        if row:
+            # 检查是否过期
+            expires_at = datetime.fromisoformat(row['expires_at'])
+            if datetime.now() < expires_at:
+                user_info = {
+                    "user_id": row['user_id'],
+                    "user_name": row['user_name'],
+                    "user_token": row['user_token']
+                }
+                print(f"从数据库找到有效会话: {user_info}")
+                
+                # 将数据库中的会话恢复到内存中
+                qr_sessions[session_id] = {
+                    "created_at": datetime.now(),
+                    "expires_at": expires_at,
+                    "is_confirmed": True,
+                    "is_bound": True,
+                    "user_info": user_info
+                }
+                print("会话已恢复到内存中")
+                
+                return user_info
+            else:
+                print("数据库中的会话已过期")
+        else:
+            print("数据库中未找到会话")
+            
+    except Exception as e:
+        print(f"数据库查询失败: {e}")
     
-    # 检查会话是否已确认且已绑定用户信息
-    if not session.get("is_confirmed", False) or not session.get("is_bound", False) or not session.get("user_info"):
-        print("会话未确认或未绑定")
-        return None
-    
-    user_info = session["user_info"]
-    print(f"返回用户信息: {user_info}")
-    return user_info
+    print("未找到有效会话")
+    return None
 
 def get_user_from_request(request: Request):
     """从请求中获取用户信息"""
