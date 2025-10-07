@@ -139,9 +139,20 @@ def init_database():
 
 def get_db_connection():
     """获取数据库连接"""
-    conn = sqlite3.connect(DB_FILE)
-    conn.row_factory = sqlite3.Row  # 使结果可以通过列名访问
-    return conn
+    try:
+        print(f"尝试连接数据库: {DB_FILE}")
+        print(f"数据库文件存在: {DB_FILE.exists()}")
+        print(f"当前工作目录: {os.getcwd()}")
+        print(f"数据库文件绝对路径: {DB_FILE.absolute()}")
+        
+        conn = sqlite3.connect(str(DB_FILE))
+        conn.row_factory = sqlite3.Row  # 使结果可以通过列名访问
+        print("数据库连接成功")
+        return conn
+    except Exception as e:
+        print(f"数据库连接失败: {e}")
+        print(f"错误类型: {type(e)}")
+        raise
 
 # 启动时初始化数据库
 init_database()
@@ -422,15 +433,24 @@ async def get_qr_login_status(loginId: str = None):
 
 def get_user_from_session(session_id: str):
     """从会话获取用户信息"""
+    print(f"查找会话: {session_id}")
+    print(f"当前会话列表: {list(qr_sessions.keys())}")
+    
     if session_id not in qr_sessions:
+        print("会话不存在")
         return None
     
     session = qr_sessions[session_id]
+    print(f"会话状态: {session}")
+    
     # 检查会话是否已确认且已绑定用户信息
     if not session.get("is_confirmed", False) or not session.get("is_bound", False) or not session.get("user_info"):
+        print("会话未确认或未绑定")
         return None
     
-    return session["user_info"]
+    user_info = session["user_info"]
+    print(f"返回用户信息: {user_info}")
+    return user_info
 
 def get_user_from_request(request: Request):
     """从请求中获取用户信息"""
@@ -518,8 +538,12 @@ async def create_health_suggestion(
     try:
         # 获取用户信息
         user_info = get_user_from_request(request)
+        print(f"获取到的用户信息: {user_info}")
         if not user_info:
             raise HTTPException(status_code=401, detail="请先扫码登录")
+        
+        print(f"用户信息类型: {type(user_info)}")
+        print(f"用户信息键: {list(user_info.keys()) if user_info else 'None'}")
         
         # 验证必填字段
         if not title or not title.strip():
@@ -556,20 +580,37 @@ async def create_health_suggestion(
                 raise HTTPException(status_code=500, detail=f"图片上传失败: {str(e)}")
         
         # 保存到数据库
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        publish_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        client_ip = request.client.host if request.client else "unknown"
-        
-        cursor.execute('''
-            INSERT INTO health_suggestions (title, content, author, tag, image_url, publish_time, user_id, user_ip)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (title.strip(), content.strip(), author.strip(), tag.strip() if tag else None, image_url, publish_time, user_info["user_id"], client_ip))
-        
-        suggestion_id = cursor.lastrowid
-        conn.commit()
-        conn.close()
+        try:
+            print("开始数据库操作...")
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            publish_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            client_ip = request.client.host if request.client else "unknown"
+            
+            print(f"准备插入数据: title={title[:50]}..., author={author}")
+            
+            cursor.execute('''
+                INSERT INTO health_suggestions (title, content, author, tag, image_url, publish_time, user_id, user_ip)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (title.strip(), content.strip(), author.strip(), tag.strip() if tag else None, image_url, publish_time, user_info["user_id"], client_ip))
+            
+            print("SQL执行成功，准备提交...")
+            suggestion_id = cursor.lastrowid
+            conn.commit()
+            print("数据库提交成功")
+            conn.close()
+            print("数据库连接已关闭")
+            
+        except sqlite3.OperationalError as e:
+            print(f"SQLite操作错误: {e}")
+            if "readonly" in str(e).lower():
+                print("数据库只读错误，检查文件权限")
+            raise HTTPException(status_code=500, detail=f"数据库操作失败: {str(e)}")
+        except Exception as e:
+            print(f"数据库操作异常: {e}")
+            print(f"异常类型: {type(e)}")
+            raise HTTPException(status_code=500, detail=f"数据库操作失败: {str(e)}")
         
         print(f"健康建议创建成功: ID={suggestion_id}, 标题={title}, 用户ID={user_info['user_id']}")
         
