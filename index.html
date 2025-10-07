@@ -1051,7 +1051,7 @@
                 if (!qrCodeSessionId) return;
                 
                 try {
-                    const response = await fetch(`${API_BASE}/qr-login/check/${qrCodeSessionId}`, {
+                    const response = await fetch(`${API_BASE}/qr-login/status?loginId=${qrCodeSessionId}`, {
                         method: 'GET',
                         headers: {
                             'Content-Type': 'application/json'
@@ -1060,14 +1060,18 @@
                     if (response.ok) {
                         const data = await response.json();
                         
-                        if (data.status === 'success' && data.user) {
-                            // 登录成功
-                            currentUser = data.user;
+                        if (data.status === 'confirmed') {
+                            // 扫码确认成功，登录成功
+                            currentUser = {
+                                user_id: `doctor_${qrCodeSessionId.substring(0, 8)}`,
+                                user_name: `医生_${qrCodeSessionId.substring(0, 8)}`,
+                                user_token: `token_${qrCodeSessionId}`
+                            };
                             localStorage.setItem('doctorUserInfo', JSON.stringify(currentUser));
                             
                             updateUserInterface();
                             closeLoginModal();
-                            showAlert(`欢迎，${currentUser.user_name}医生！`, 'success');
+                            showAlert(`欢迎，${currentUser.user_name}！`, 'success');
                             
                             // 跳转到健康建议列表页面
                             setTimeout(() => {

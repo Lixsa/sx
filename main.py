@@ -334,35 +334,60 @@ async def bind_qr_login(request: QRLoginRequest):
     
     return {"status": "success", "message": "绑定成功"}
 
-@app.post("/api/qr-login/confirm")
-async def confirm_qr_login(request: dict):
-    """确认二维码登录"""
-    session_id = request.get("session_id")
+@app.get("/api/qr-login/confirm")
+async def confirm_qr_login(loginId: str):
+    """确认二维码登录 - APP扫码后调用"""
+    if loginId not in qr_sessions:
+        raise HTTPException(status_code=404, detail="登录ID不存在或已过期")
     
-    if not session_id:
-        raise HTTPException(status_code=400, detail="缺少session_id参数")
-    
-    if session_id not in qr_sessions:
-        raise HTTPException(status_code=404, detail="会话不存在或已过期")
-    
-    session = qr_sessions[session_id]
+    session = qr_sessions[loginId]
     
     # 检查是否过期
     if datetime.now() > session["expires_at"]:
-        del qr_sessions[session_id]
-        raise HTTPException(status_code=410, detail="会话已过期")
+        del qr_sessions[loginId]
+        raise HTTPException(status_code=410, detail="登录ID已过期")
     
-    # 检查是否已经绑定
-    if not session["is_bound"] or not session["user_info"]:
-        raise HTTPException(status_code=400, detail="会话未绑定用户")
+    # 标记为已确认扫码
+    session["is_confirmed"] = True
+    session["confirmed_at"] = datetime.now()
     
-    # 返回成功响应和跳转URL
+    print(f"二维码登录确认成功: {loginId}")
+    
     return {
         "status": "success",
-        "message": "登录确认成功",
-        "redirect_url": "/",  # 跳转到主页
-        "user_info": session["user_info"]
+        "message": "扫码确认成功",
+        "loginId": loginId
     }
+
+@app.get("/api/qr-login/status")
+async def get_qr_login_status(loginId: str):
+    """检查二维码登录状态 - 网页前端轮询"""
+    if loginId not in qr_sessions:
+        raise HTTPException(status_code=404, detail="登录ID不存在或已过期")
+    
+    session = qr_sessions[loginId]
+    
+    # 检查是否过期
+    if datetime.now() > session["expires_at"]:
+        del qr_sessions[loginId]
+        raise HTTPException(status_code=410, detail="登录ID已过期")
+    
+    # 检查扫码状态
+    if session.get("is_confirmed", False):
+        # 扫码已确认，返回成功状态
+        return {
+            "status": "confirmed",
+            "message": "扫码确认成功",
+            "loginId": loginId,
+            "confirmed_at": session.get("confirmed_at", datetime.now()).isoformat()
+        }
+    else:
+        # 等待扫码
+        return {
+            "status": "waiting",
+            "message": "等待扫码确认",
+            "loginId": loginId
+        }
 
 def get_user_from_session(session_id: str):
     """从会话获取用户信息"""
