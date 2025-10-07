@@ -334,9 +334,52 @@ async def bind_qr_login(request: QRLoginRequest):
     
     return {"status": "success", "message": "绑定成功"}
 
+# 新增POST请求的数据模型
+class QRConfirmRequest(BaseModel):
+    uuid: str
+    doctor_id: str
+
+@app.post("/api/qr-login/confirm/")
+async def confirm_qr_login_post(request: QRConfirmRequest):
+    """确认二维码登录 - APP扫码后调用（POST请求）"""
+    session_id = request.uuid
+    doctor_id = request.doctor_id
+    
+    if session_id not in qr_sessions:
+        raise HTTPException(status_code=404, detail="会话不存在或已过期")
+    
+    session = qr_sessions[session_id]
+    
+    # 检查是否过期
+    if datetime.now() > session["expires_at"]:
+        del qr_sessions[session_id]
+        raise HTTPException(status_code=410, detail="会话已过期")
+    
+    # 标记为已确认扫码并绑定医师信息
+    session["is_confirmed"] = True
+    session["confirmed_at"] = datetime.now()
+    session["is_bound"] = True
+    session["user_info"] = {
+        "doctor_id": doctor_id,
+        "login_time": datetime.now().isoformat()
+    }
+    
+    print(f"二维码登录确认成功: {session_id}, 医师ID: {doctor_id}")
+    print(f"当前会话状态: {session}")
+    
+    return {
+        "status": "success",
+        "message": "扫码确认成功",
+        "uuid": session_id,
+        "doctor_id": doctor_id
+    }
+
 @app.get("/api/qr-login/confirm")
-async def confirm_qr_login(loginId: str):
-    """确认二维码登录 - APP扫码后调用"""
+async def confirm_qr_login_get(loginId: str = None):
+    """确认二维码登录 - 兼容旧版本GET请求"""
+    if not loginId:
+        raise HTTPException(status_code=400, detail="缺少loginId参数")
+    
     if loginId not in qr_sessions:
         raise HTTPException(status_code=404, detail="登录ID不存在或已过期")
     
@@ -352,6 +395,7 @@ async def confirm_qr_login(loginId: str):
     session["confirmed_at"] = datetime.now()
     
     print(f"二维码登录确认成功: {loginId}")
+    print(f"当前会话状态: {session}")
     
     return {
         "status": "success",
@@ -360,8 +404,11 @@ async def confirm_qr_login(loginId: str):
     }
 
 @app.get("/api/qr-login/status")
-async def get_qr_login_status(loginId: str):
+async def get_qr_login_status(loginId: str = None):
     """检查二维码登录状态 - 网页前端轮询"""
+    if not loginId:
+        raise HTTPException(status_code=400, detail="缺少loginId参数")
+    
     if loginId not in qr_sessions:
         raise HTTPException(status_code=404, detail="登录ID不存在或已过期")
     
@@ -373,8 +420,11 @@ async def get_qr_login_status(loginId: str):
         raise HTTPException(status_code=410, detail="登录ID已过期")
     
     # 检查扫码状态
+    print(f"检查登录状态: {loginId}, 会话: {session}")
+    
     if session.get("is_confirmed", False):
         # 扫码已确认，返回成功状态
+        print(f"登录已确认: {loginId}")
         return {
             "status": "confirmed",
             "message": "扫码确认成功",
@@ -383,6 +433,7 @@ async def get_qr_login_status(loginId: str):
         }
     else:
         # 等待扫码
+        print(f"等待扫码确认: {loginId}")
         return {
             "status": "waiting",
             "message": "等待扫码确认",
