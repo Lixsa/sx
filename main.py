@@ -23,7 +23,7 @@ app = FastAPI(title="健康建议API", description="执业医师健康建议管�
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://13.60.25.213",  # 生产环境前端域名
+        "http://16.171.135.255",  # 生产环境前端域名
         "http://localhost:3000",  # 本地开发环境
         "http://127.0.0.1:3000",  # 本地开发环境
         "http://localhost:8080",  # 备用本地端口
@@ -177,7 +177,7 @@ async def generate_qr_code():
     }
     
     # 生成二维码数据（包含可访问的URL）
-    qr_code_data = f"http://13.60.25.213/confirm-login?loginId={session_id}"
+    qr_code_data = f"http://16.171.135.255/confirm-login?loginId={session_id}"
     
     # 使用qrcode库生成二维码图片
     try:
